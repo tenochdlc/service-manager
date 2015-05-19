@@ -8,19 +8,22 @@ from servicemanager import subprocess
 
 def kill_pid(context, pid, force=False):
 
-    if _is_system_or_smserver_or_test_process(pid):
-        return "Not allowed to kill system, test or smserver process (pid = %d)" % pid
+    # CYGWIN start
+    #if _is_system_or_smserver_or_test_process(pid):
+    #    return "Not allowed to kill system, test or smserver process (pid = %d)" % pid
 
-    try:
-        if force:
-            os.kill(pid, SIGKILL)
-        else:
-            os.kill(pid, SIGINT)
+    #try:
+    #    if force:
+    #        os.kill(pid, SIGKILL)
+    #    else:
+    #        os.kill(pid, SIGINT)
 
-    except Exception, e:
-        error = "Could not kill pid: " + str(pid) + " because of exception: " + str(e)
-        context.log(error)
-        return error
+    #except Exception, e:
+    #    error = "Could not kill pid: " + str(pid) + " because of exception: " + str(e)
+    #    context.log(error)
+    #    return error
+    print os.popen("taskkill /F /PID " + str(pid)).read()
+    # CYGWIN end
 
 
 def _is_system_or_smserver_or_test_process(pid):

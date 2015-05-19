@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+
+
+use strict;
+use Getopt::Long;
+use Data::Dumper;
+Getopt::Long::Configure ("bundling");
+
+my @o_args;
+my $e_flag;
+
+if( @ARGV == 0 ) {
+  # todo ADD A MESSAGE EXPLANNING THE OPTIONS SUPPORTED
+  die "Arguments required\n";
+} elsif ( not $ARGV[0] =~ /^-.*/ ) {
+  if( $ARGV[0] eq "axo" ) {
+    @o_args = split(/,/, $ARGV[1]);
+  }
+} else {
+  GetOptions('o=s' => \@o_args,
+             'e'   => \$e_flag);
+
+  @o_args = split(/,/,join(',',@o_args));
+}
+
+my $field_translations = { "args"    => ["CommandLine","COMMAND"],
+                           "command" => ["CommandLine","COMMAND"],
+                           "pid"     => ["ProcessId", "PID"],
+                           "ppid"    => ["ParentProcessId","PPID"],
+                           "etime"   => ["CreationDate","ELAPSED"],
+                           "rss"     => ["WorkingSetSize","RSS"]
+                         };
+my $cmd = "wmic process";
+
+open(my $cmd_out, $cmd . " |") or die "Cannot start $cmd: $!\n";
+
+my $hdr_line = <$cmd_out>;
+$hdr_line =~ s/[\n\r]*$//;
+
+my @split_header = split(/(\s+)/, $hdr_line);
+my %header;
+for(my $i=0, my $offset=0; $i < @split_header; $i += 2) {
+  my $length = length($split_header[$i]) + length($split_header[$i + 1]);
+  $header{$split_header[$i]} = [$offset, $length];
+  $offset += $length;
+}
+
+my $out_header="";
+foreach my $field (@o_args) {
+  $out_header .= $field_translations->{$field}->[1] . " ";
+}
+print "$out_header\n";
+
+while(my $line = <$cmd_out>) {
+  next if $line =~ /^\s*$/;
+  my $line_out="";
+  foreach my $field (@o_args) {
+    my $win_key = $field_translations->{$field}->[0];
+    my $offset = $header{$win_key}->[0];
+    my $length = $header{$win_key}->[1];
+    my $value = substr($line, $offset, $length);
+    $value = "-666 " if $value =~ /^\s*$/;
+
+    $line_out .= $value;
+  }
+  print "$line_out\n";
+}
+

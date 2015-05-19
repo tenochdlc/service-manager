@@ -112,6 +112,12 @@ class SmPlayServiceStarter(SmJvmServiceStarter):
         print(cmd_with_params)
 
         with open("logs/stdout.txt", "wb") as out, open("logs/stderr.txt", "wb") as err:
+            # CYGWIN start
+            import platform
+            if platform.platform().find("CYGWIN") <> -1: 
+                print "Executing CYGWIN wrapper to start play service"
+                cmd_with_params = ["smplay_start_service_wrapper"] + cmd_with_params
+            # CYGWIN end
             popen_output = Popen(cmd_with_params, env=os.environ.copy(), stdout=out, stderr=err, close_fds=True)
             if popen_output.returncode == 1:
                 print b.fail + "ERROR: could not start '" + self.service_name + "' " + b.endc

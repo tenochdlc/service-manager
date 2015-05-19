@@ -30,6 +30,10 @@ class SmNexus():
             start_time = time.time()
             return
         duration = time.time() - start_time
+        # CYGWIN start
+        if duration == 0:
+          duration = 1
+        # CYGWIN end
         progress_size = int(count * block_size)
         speed = int(progress_size / (1024 * duration))
         percent = int(count * block_size * 100 / total_size)

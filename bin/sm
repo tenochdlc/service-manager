@@ -6,6 +6,16 @@ import json
 import sys
 from collections import OrderedDict
 import os
+import inspect
+
+# CYGWIN start
+root_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]) + "/..")
+if root_folder not in sys.path:
+  sys.path.insert(0, root_folder)
+
+os.environ['PATH'] = root_folder + "/cygwin:" + os.environ['PATH']
+#CYGWIN end
+
 
 from servicemanager.serviceresolver import ServiceResolver
 from servicemanager.smstatus import dostatus
@@ -175,6 +185,9 @@ def _process_command():
 
 try:
     _process_command()
+    # CYGWIN start
+    os.popen('stty echo')
+    # CYGWIN end
 except ServiceManagerException as e:
     print e.message
     sys.exit(-1)
