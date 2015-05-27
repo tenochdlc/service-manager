@@ -3,11 +3,67 @@
 
 use strict;
 use Getopt::Long;
-use Data::Dumper;
 Getopt::Long::Configure ("bundling");
 
 my @o_args;
 my $e_flag;
+my $field_translations = { "args"    => ["CommandLine","COMMAND"],
+                           "command" => ["CommandLine","COMMAND"],
+                           "pid"     => ["ProcessId", "PID"],
+                           "ppid"    => ["ParentProcessId","PPID"],
+                           "etime"   => ["CreationDate","ELAPSED"],
+                           "rss"     => ["WorkingSetSize","RSS"]
+                         };
+
+# wmic gets very very very slow with long args processes 
+# (e.g. jave with many jars in classpath).
+# A deeper change is needed in SM to make it run fast on Windows
+
+my $cmd = "wmic process";
+my $proc = "/proc";
+
+
+########################################################################
+#
+#
+
+sub getValuesFromProc {
+  my $proc_param = shift;
+
+  my $proc_dir = "$proc/$proc_param";
+  my %result;
+
+  my $cmd   = `cat $proc_dir/cmdline 2>/dev/null`;
+  my $pid   = `cat $proc_dir/winpid  2>/dev/null`;
+  my $ppid  = `cat $proc_dir/ppid    2>/dev/null`;
+  my @stats = split(/ /, `cat $proc_dir/stat 2>/dev/null`);
+
+  $cmd =~ s/\x00/ /g;
+  $cmd = $cmd eq "" ? "PROC_ENDED_BEFORE_IT_COULD_BE_READ" : $cmd;
+  $result{'args'} = $cmd;
+  $result{'command'} = $cmd;
+
+  chomp($pid); 
+  $pid = $pid eq "" ? -666 : $pid; # -666 process ended before it could read 
+  $result{'pid'} = $pid;
+
+  chomp($ppid); 
+  $ppid = $ppid eq "" ? -666 : $ppid; # -666 process ended before it could read 
+  $result{'ppid'} = $ppid;
+
+  $result{'etime'} = @stats == 0 ? -1 : $stats[21]; # -1 process ended before it could read
+  
+  my $rss = $stats[23] * 4;
+  $result{'rss'} = @stats == 0 ? -1 : $rss; # -1 process ended before it could be read
+  
+  return \%result;
+}
+#
+#
+#######################################################################
+
+
+#   PARSE PARAMS
 
 if( @ARGV == 0 ) {
   # todo ADD A MESSAGE EXPLANNING THE OPTIONS SUPPORTED
@@ -23,20 +79,16 @@ if( @ARGV == 0 ) {
   @o_args = split(/,/,join(',',@o_args));
 }
 
-my $field_translations = { "args"    => ["CommandLine","COMMAND"],
-                           "command" => ["CommandLine","COMMAND"],
-                           "pid"     => ["ProcessId", "PID"],
-                           "ppid"    => ["ParentProcessId","PPID"],
-                           "etime"   => ["CreationDate","ELAPSED"],
-                           "rss"     => ["WorkingSetSize","RSS"]
-                         };
-my $cmd = "wmic process";
 
 open(my $cmd_out, $cmd . " |") or die "Cannot start $cmd: $!\n";
+
+# PROCESS THE HEADER from wmic
 
 my $hdr_line = <$cmd_out>;
 $hdr_line =~ s/[\n\r]*$//;
 
+# next split will keep the blanks (required for field length)
+# but on a separate field
 my @split_header = split(/(\s+)/, $hdr_line);
 my %header;
 for(my $i=0, my $offset=0; $i < @split_header; $i += 2) {
@@ -45,12 +97,14 @@ for(my $i=0, my $offset=0; $i < @split_header; $i += 2) {
   $offset += $length;
 }
 
+# Build a new PS-like header
 my $out_header="";
 foreach my $field (@o_args) {
   $out_header .= $field_translations->{$field}->[1] . " ";
 }
 print "$out_header\n";
 
+# Parse and print rest of wmic lines
 while(my $line = <$cmd_out>) {
   next if $line =~ /^\s*$/;
   my $line_out="";
@@ -59,9 +113,29 @@ while(my $line = <$cmd_out>) {
     my $offset = $header{$win_key}->[0];
     my $length = $header{$win_key}->[1];
     my $value = substr($line, $offset, $length);
+    # Print something if the wmic field is empty, otherwise SM gets
+    # comfused
     $value = "-666 " if $value =~ /^\s*$/;
 
     $line_out .= $value;
+ }
+  print "$line_out\n";
+}
+
+# print processes from /proc
+# This will get us cygwin process with full args (assets-frontend)
+
+opendir(my $dh, "$proc") || die "can't opendir '$proc': !";
+my @procs = grep { -f "$proc/$_/cmdline" && ! /self/ } readdir($dh);
+closedir $dh;
+
+foreach my $process (@procs) {
+  #next if not -e "$proc/$process";
+  my $details = getValuesFromProc($process);
+  next if $details->{'command'} =~ /defunct/;
+  my $line_out="";
+  foreach my $field (@o_args) {
+    $line_out .= $details->{$field} . " ";
   }
   print "$line_out\n";
 }
