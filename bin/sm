@@ -6,6 +6,15 @@ import json
 import sys
 from collections import OrderedDict
 import os
+import inspect
+
+# run from repo
+root_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]) + "/..")
+if root_folder not in sys.path:
+    sys.path.insert(0, root_folder)
+
+os.environ['PATH'] = root_folder + "/cygwin" + os.pathsep + os.environ['PATH']
+# run from repo - END
 
 from servicemanager.serviceresolver import ServiceResolver
 from servicemanager.smstatus import dostatus

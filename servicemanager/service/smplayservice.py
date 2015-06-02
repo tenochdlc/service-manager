@@ -112,10 +112,37 @@ class SmPlayServiceStarter(SmJvmServiceStarter):
         print(cmd_with_params)
 
         with open("logs/stdout.txt", "wb") as out, open("logs/stderr.txt", "wb") as err:
-            popen_output = Popen(cmd_with_params, env=os.environ.copy(), stdout=out, stderr=err, close_fds=True)
+            if os.name == "nt":
+                cmd_with_params = self.patch_script_and_get_new_windows_cmd(cmd_with_params)
+                popen_output = subprocess.Popen(cmd_with_params, env=os.environ.copy(), stdout=out, stderr=err)
+            else:
+               popen_output = Popen(cmd_with_params, env=os.environ.copy(), stdout=out, stderr=err, close_fds=True)
+
             if popen_output.returncode == 1:
                 print b.fail + "ERROR: could not start '" + self.service_name + "' " + b.endc
             return popen_output.pid
+
+    def patch_script_and_get_new_windows_cmd(selfself, old_cmd_with_params):
+        old_cmd_with_params[0] = old_cmd_with_params[0].replace("/","\\")
+        input_file = open(old_cmd_with_params[0] + ".bat","r")
+        output_file_name = old_cmd_with_params[0] + "_new.bat"
+        output_file = open(output_file_name, "w")
+
+        for line in input_file:
+            if "set \"APP_CLASSPATH=%APP_LIB_DIR%\\" in line:
+                newline = "set \"APP_CLASSPATH=%APP_LIB_DIR%\\*\"\n"
+            elif "-cp \"%APP_CLASSPATH%\" %APP_MAIN_CLASS% %*" in line:
+                newline = line.replace(" %*","")
+            else:
+                newline = line
+
+            output_file.write(newline)
+
+        input_file.close()
+        output_file.close()
+
+        old_cmd_with_params[0] = output_file_name
+        return old_cmd_with_params
 
     def _unzip_play_application(self):
         service_data = self.service_data

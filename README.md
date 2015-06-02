@@ -1,5 +1,14 @@
 Service Manager
 ===================
+This fork contains modifications to make SM run on Windows (STATUS, START -f and STOP operations).
+
+There are two versions. Master contains a faster CYGWIN-free solution (using the psutil library).
+
+Branch "with-cygwin" contains a version using cygwin, which is much slower.
+
+These cannot be installed using PIP, they have to be run from a cloned repo. Apart from that, the rest of the original README below still applies.
+
+------------------------
 
 [![Join the chat at https://gitter.im/hmrc/service-manager](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/hmrc/service-manager?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
