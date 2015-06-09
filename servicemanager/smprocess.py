@@ -3,6 +3,8 @@ from signal import SIGINT
 import os
 import re
 import psutil
+import time
+from datetime import timedelta
 
 from servicemanager import subprocess
 
@@ -150,9 +152,10 @@ class SmProcess:
 
         for proc in psutil.process_iter():
             try:
+                time_diff = time.time() - proc.create_time()
                 smprocess = SmProcess( proc.ppid(),
                                        proc.pid,
-                                       proc.create_time(),
+                                       str(timedelta(seconds=time_diff)),
                                        proc.memory_info().rss,
                                        proc.cmdline() )
             except psutil.NoSuchProcess:
